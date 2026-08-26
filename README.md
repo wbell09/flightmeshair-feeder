@@ -1,6 +1,8 @@
-# FlightMeshAir Raspberry Pi feeder
+# FlightMeshAir Linux ADS-B feeder
 
-This installer connects an approved Raspberry Pi ADS-B receiver to FlightMeshAir. You must receive a unique station ID and private upload token from FlightMeshAir before installation.
+This installer connects an approved ADS-B receiver to FlightMeshAir. You must receive a unique station ID and private upload token from FlightMeshAir before installation.
+
+> **Recommended, not required:** A Raspberry Pi running PiAware/dump1090-fa is the tested and recommended setup. Other Debian-based Linux computers and compatible decoders can be used when they run `systemd`, have Python 3, and expose an accessible `aircraft.json` file.
 
 Never post your upload token in GitHub, email screenshots, terminal screenshots, or support messages. The installer prompts for it privately and stores it in `/etc/flightmesh/feeder.env`, readable only by root.
 
@@ -8,18 +10,18 @@ Never post your upload token in GitHub, email screenshots, terminal screenshots,
 
 You need:
 
-- A Raspberry Pi running 64-bit Raspberry Pi OS or another Debian-based system
+- A Raspberry Pi running 64-bit Raspberry Pi OS, or another Debian-based Linux computer using `systemd`
 - Ethernet or Wi-Fi internet access
 - A compatible ADS-B USB receiver and 1090 MHz antenna
-- PiAware/dump1090-fa already receiving aircraft
+- PiAware, dump1090-fa, readsb or another compatible decoder already receiving aircraft and producing `aircraft.json`
 - Your assigned FlightMeshAir station ID and upload token
 
-## 1. Connect to the Raspberry Pi
+## 1. Connect to the feeder computer
 
 From Terminal on your computer:
 
 ```bash
-ssh YOUR-PI-USERNAME@YOUR-PI-HOSTNAME.local
+ssh YOUR-USERNAME@YOUR-FEEDER-HOST.local
 ```
 
 ## 2. Verify the receiver
@@ -30,7 +32,7 @@ Confirm Linux sees the USB receiver:
 lsusb
 ```
 
-Confirm dump1090-fa is running:
+For the recommended PiAware setup, confirm dump1090-fa is running:
 
 ```bash
 sudo systemctl status dump1090-fa --no-pager
@@ -41,6 +43,8 @@ Confirm aircraft data is available:
 ```bash
 curl -fsS http://127.0.0.1:8080/data/aircraft.json | python3 -m json.tool | head -60
 ```
+
+Other decoder installations may use a different service name or URL. Use the local `aircraft.json` URL provided by that decoder.
 
 ## 3. Install the FlightMeshAir feeder
 

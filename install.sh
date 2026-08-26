@@ -17,7 +17,7 @@ allow_insecure="false"
 
 usage() {
   cat <<'EOF'
-Install the FlightMesh feeder as a Raspberry Pi system service.
+Install the FlightMesh feeder as a Debian-based Linux system service.
 
 Usage:
   sudo ./install.sh --station STATION_ID [options]
