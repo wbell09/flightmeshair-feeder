@@ -103,6 +103,25 @@ Check both receiver services:
 sudo systemctl status dump1090-fa flightmesh-feeder --no-pager
 ```
 
+## Updating an existing feeder
+
+The private feeder portal compares the version reported by this service with the current release. When an update is available, it displays a notice and these manual update steps. FlightMeshAir does not update the Pi automatically.
+
+```bash
+git -C ~/flightmeshair-feeder pull
+sudo install -m 0755 \
+  ~/flightmeshair-feeder/forward_dump1090.py \
+  /opt/flightmesh/forward_dump1090.py
+sudo systemctl restart flightmesh-feeder
+sudo systemctl status flightmesh-feeder --no-pager
+```
+
+If `~/flightmeshair-feeder` does not exist yet, clone it first:
+
+```bash
+git clone https://github.com/wbell09/flightmeshair-feeder.git ~/flightmeshair-feeder
+```
+
 ## View your private portal
 
 Sign in at [feed.flightmeshair.com](https://feed.flightmeshair.com/) using the customer account provided by FlightMeshAir. The upload token used by the Pi is separate from your website password.
