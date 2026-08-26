@@ -17,7 +17,7 @@ from typing import Any
 FEET_TO_METERS = 0.3048
 KNOTS_TO_METERS_PER_SECOND = 0.514444
 FEET_PER_MINUTE_TO_METERS_PER_SECOND = 0.00508
-CLIENT_VERSION = "flightmesh-dump1090/0.2.0"
+CLIENT_VERSION = "flightmesh-dump1090/0.2.1"
 MAX_BATCH_SIZE = 100
 MAX_POSITION_AGE_SECONDS = 45
 
@@ -137,7 +137,7 @@ def main() -> None:
     if args.interval < 0.5:
         parser.error("--interval must be at least 0.5 seconds")
 
-    print(f"Forwarding {args.source} as {args.station}; press Ctrl+C to stop.")
+    print(f"{CLIENT_VERSION} forwarding {args.source} as {args.station}; press Ctrl+C to stop.")
     last_heartbeat = 0.0
     try:
         while True:
