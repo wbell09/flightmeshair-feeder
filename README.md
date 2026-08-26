@@ -79,6 +79,8 @@ Successful logs contain entries similar to:
 read=21 accepted=21
 ```
 
+Only airborne aircraft with positions seen within the last 45 seconds are forwarded. Aircraft that land or stop transmitting automatically disappear from live maps instead of remaining at their last known position.
+
 The service starts automatically after reboot and restarts if it encounters an unexpected error.
 
 ## Useful commands

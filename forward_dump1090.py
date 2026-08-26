@@ -19,6 +19,7 @@ KNOTS_TO_METERS_PER_SECOND = 0.514444
 FEET_PER_MINUTE_TO_METERS_PER_SECOND = 0.00508
 CLIENT_VERSION = "flightmesh-dump1090/0.1.0"
 MAX_BATCH_SIZE = 100
+MAX_POSITION_AGE_SECONDS = 45
 
 
 def _number(value: Any) -> float | None:
@@ -48,6 +49,8 @@ def convert_aircraft(document: dict[str, Any], received_at: int | None = None) -
         age = _number(aircraft.get("seen_pos"))
         if age is None:
             age = _number(aircraft.get("seen")) or 0.0
+        if age > MAX_POSITION_AGE_SECONDS or aircraft.get("alt_baro") == "ground":
+            continue
         observation: dict[str, Any] = {
             "icao24": icao24,
             "observed_at": max(1, source_now - max(0, round(age))),
@@ -59,7 +62,7 @@ def convert_aircraft(document: dict[str, Any], received_at: int | None = None) -
             observation["callsign"] = callsign[:16]
 
         altitude = aircraft.get("alt_baro")
-        observation["on_ground"] = altitude == "ground"
+        observation["on_ground"] = False
         if (altitude_number := _number(altitude)) is not None:
             observation["baro_altitude"] = altitude_number * FEET_TO_METERS
         if (geometric := _number(aircraft.get("alt_geom"))) is not None:
