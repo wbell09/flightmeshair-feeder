@@ -1,0 +1,35 @@
+[Unit]
+Description=FlightMesh ADS-B feeder
+Documentation=https://github.com/wbell09/flightmeshair-feeder
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+DynamicUser=yes
+EnvironmentFile=/etc/flightmesh/feeder.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 /opt/flightmesh/forward_dump1090.py --station ${FLIGHTMESH_STATION_ID} --source ${FLIGHTMESH_AIRCRAFT_SOURCE} --api-url ${FLIGHTMESH_API_URL} $FLIGHTMESH_EXTRA_ARGS
+Restart=always
+RestartSec=5s
+TimeoutStopSec=15s
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target
