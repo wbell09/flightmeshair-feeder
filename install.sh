@@ -9,6 +9,7 @@ readonly UNIT_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 readonly FORWARDER_SOURCE="${SCRIPT_DIR}/forward_dump1090.py"
 readonly UNIT_SOURCE="${SCRIPT_DIR}/${SERVICE_NAME}.service"
+readonly UPDATER_SOURCE="${SCRIPT_DIR}/flightmesh_updater.py"
 
 station_id=""
 api_url="https://api.wbell09.com"
@@ -55,6 +56,7 @@ done
 [[ "${aircraft_source}" =~ ^https?://[^[:space:]]+$ ]] || fail "--source must be an HTTP(S) URL"
 [[ -f "${FORWARDER_SOURCE}" ]] || fail "forward_dump1090.py was not found beside the installer"
 [[ -f "${UNIT_SOURCE}" ]] || fail "systemd unit template is missing"
+[[ -f "${UPDATER_SOURCE}" ]] || fail "flightmesh_updater.py was not found beside the installer"
 command -v python3 >/dev/null || fail "python3 is required"
 command -v systemctl >/dev/null || fail "systemd is required"
 
@@ -67,6 +69,7 @@ fi
 
 install -d -m 0755 -o root -g root "${INSTALL_DIR}"
 install -m 0755 -o root -g root "${FORWARDER_SOURCE}" "${INSTALL_DIR}/forward_dump1090.py"
+install -m 0755 -o root -g root "${UPDATER_SOURCE}" "${INSTALL_DIR}/flightmesh_updater.py"
 install -d -m 0700 -o root -g root "${CONFIG_DIR}"
 
 umask 077
@@ -84,8 +87,11 @@ umask 077
 chmod 0600 "${CONFIG_FILE}"
 
 install -m 0644 -o root -g root "${UNIT_SOURCE}" "${UNIT_FILE}"
+install -m 0644 -o root -g root "${SCRIPT_DIR}/flightmesh-updater.service" /etc/systemd/system/flightmesh-updater.service
+install -m 0644 -o root -g root "${SCRIPT_DIR}/flightmesh-updater.timer" /etc/systemd/system/flightmesh-updater.timer
 systemctl daemon-reload
 systemctl enable --now "${SERVICE_NAME}.service"
+systemctl enable --now flightmesh-updater.timer
 
 printf '\nFlightMesh feeder installed for %s.\n' "${station_id}"
 printf 'Status: sudo systemctl status %s\n' "${SERVICE_NAME}"

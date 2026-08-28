@@ -1,0 +1,16 @@
+[Unit]
+Description=FlightMeshAir approved feeder updater
+Documentation=https://github.com/wbell09/flightmeshair-feeder
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/flightmesh/feeder.env
+ExecStart=/usr/bin/python3 /opt/flightmesh/flightmesh_updater.py
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=full
+ReadWritePaths=/opt/flightmesh
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6

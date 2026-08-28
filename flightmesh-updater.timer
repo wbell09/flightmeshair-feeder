@@ -1,0 +1,11 @@
+[Unit]
+Description=Check for an owner-approved FlightMeshAir feeder update
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=5min
+RandomizedDelaySec=45s
+Persistent=true
+
+[Install]
+WantedBy=timers.target
