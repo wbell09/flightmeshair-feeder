@@ -17,7 +17,7 @@ from typing import Any
 FEET_TO_METERS = 0.3048
 KNOTS_TO_METERS_PER_SECOND = 0.514444
 FEET_PER_MINUTE_TO_METERS_PER_SECOND = 0.00508
-CLIENT_VERSION = "flightmesh-dump1090/0.2.4"
+CLIENT_VERSION = "flightmesh-dump1090/0.2.5"
 MAX_BATCH_SIZE = 100
 MAX_POSITION_AGE_SECONDS = 45
 
@@ -90,7 +90,16 @@ def load_document(source: str, timeout: float) -> dict[str, Any]:
         return json.load(handle)
 
 
-def submit(api_url: str, station_id: str, token: str, observations: list[dict[str, Any]], timeout: float, insecure: bool) -> int:
+def changed_observations(
+    observations: list[dict[str, Any]], last_sent: dict[str, int]
+) -> list[dict[str, Any]]:
+    return [
+        observation for observation in observations
+        if int(observation["observed_at"]) > last_sent.get(observation["icao24"], 0)
+    ]
+
+
+def submit(api_url: str, station_id: str, token: str, observations: list[dict[str, Any]], timeout: float, insecure: bool, sequence: int = 0) -> int:
     accepted = 0
     context = ssl._create_unverified_context() if insecure else None
     endpoint = f"{api_url.rstrip('/')}/feeders/{station_id}/observations"
@@ -98,7 +107,11 @@ def submit(api_url: str, station_id: str, token: str, observations: list[dict[st
         batch = observations[start:start + MAX_BATCH_SIZE]
         request = urllib.request.Request(
             endpoint,
-            data=json.dumps({"observations": batch}).encode(),
+            data=json.dumps({
+                "observations": batch,
+                "sent_at_ms": int(time.time() * 1000),
+                "sequence": sequence,
+            }).encode(),
             headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
             method="POST",
         )
@@ -139,16 +152,28 @@ def main() -> None:
 
     print(f"{CLIENT_VERSION} forwarding {args.source} as {args.station}; press Ctrl+C to stop.")
     last_heartbeat = 0.0
+    last_sent: dict[str, int] = {}
+    sequence = 0
     try:
         while True:
             started = time.monotonic()
             try:
                 observations = convert_aircraft(load_document(args.source, args.timeout))
+                changed = changed_observations(observations, last_sent)
                 if args.once or time.monotonic() - last_heartbeat >= max(1.0, args.heartbeat_interval):
                     send_heartbeat(args.api_url, args.station, token, len(observations), args.timeout, args.insecure)
                     last_heartbeat = time.monotonic()
-                accepted = submit(args.api_url, args.station, token, observations, args.timeout, args.insecure) if observations else 0
-                print(f"read={len(observations)} accepted={accepted} at={int(time.time())}")
+                accepted = submit(
+                    args.api_url, args.station, token, changed,
+                    args.timeout, args.insecure, sequence,
+                ) if changed else 0
+                for observation in changed:
+                    last_sent[observation["icao24"]] = int(observation["observed_at"])
+                sequence += 1
+                print(
+                    f"read={len(observations)} changed={len(changed)} "
+                    f"accepted={accepted} at={int(time.time())}"
+                )
             except Exception as exc:
                 print(f"forwarding error: {exc}", flush=True)
                 if args.once:
