@@ -52,16 +52,16 @@ This path only installs `dump1090-mutability` when it is already available from 
 ## 3. Install the FlightMeshAir feeder
 
 ```bash
-sudo apt-get update
-sudo apt-get install -y git python3 curl
-git clone https://github.com/wbell09/flightmeshair-feeder.git
-cd flightmeshair-feeder
-sudo ./install.sh --station YOUR-STATION-ID
+curl -fsSLo flightmeshair-install.sh https://raw.githubusercontent.com/wbell09/flightmeshair-feeder/main/bootstrap.sh
+chmod +x flightmeshair-install.sh
+./flightmeshair-install.sh --station YOUR-STATION-ID
 ```
 
 Replace `YOUR-STATION-ID` with the ID provided by FlightMeshAir. When prompted, paste the private upload token and press Enter. The token will not appear while you type or paste it.
 
-During installation you will see the receiver services checked and the `aircraft.json` URL selected. The chosen URL is stored as `FLIGHTMESH_AIRCRAFT_SOURCE` in `/etc/flightmesh/feeder.env`.
+The bootstrap downloads the public installer files into `~/flightmeshair-feeder`, then runs the normal installer with `sudo`. During installation you will see the receiver services checked and the `aircraft.json` URL selected. The chosen URL is stored as `FLIGHTMESH_AIRCRAFT_SOURCE` in `/etc/flightmesh/feeder.env`.
+
+If you prefer to review the installer before running it, open `flightmeshair-install.sh` after the download, or review the same source in this repository. The bootstrap avoids putting your upload token in the command line or shell history; the normal installer still prompts for it privately.
 
 If you do not want the installer to prompt about receiver software when no source is found, use:
 
@@ -127,9 +127,9 @@ The private feeder portal compares the version reported by this service with the
 Existing installations need this one-time bootstrap before the portal button can work:
 
 ```bash
-git -C ~/flightmeshair-feeder pull
-cd ~/flightmeshair-feeder
-sudo ./install.sh --station YOUR-STATION-ID
+curl -fsSLo flightmeshair-install.sh https://raw.githubusercontent.com/wbell09/flightmeshair-feeder/main/bootstrap.sh
+chmod +x flightmeshair-install.sh
+./flightmeshair-install.sh --station YOUR-STATION-ID
 ```
 
 After that, future feeder-script updates can be approved from the portal. Manual update steps remain available as a recovery path.
