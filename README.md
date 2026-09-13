@@ -134,6 +134,8 @@ chmod +x flightmeshair-install.sh
 
 After that, future feeder-script updates can be approved from the portal. Manual update steps remain available as a recovery path.
 
+The portal update button updates the feeder forwarding script. To refresh the updater service itself, including clearer token-authentication diagnostics, rerun the one-time bootstrap command above.
+
 ```bash
 git -C ~/flightmeshair-feeder pull
 sudo install -m 0755 \

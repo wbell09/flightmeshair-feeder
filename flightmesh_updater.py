@@ -7,7 +7,9 @@ import os
 from pathlib import Path
 import py_compile
 import subprocess
+import sys
 import tempfile
+import urllib.error
 import urllib.request
 
 INSTALL_PATH = Path("/opt/flightmesh/forward_dump1090.py")
@@ -32,7 +34,21 @@ def report(api_url, station, token, request_id, status, message=None):
     )
 
 
-def main():
+def update_error_message(exc):
+    if isinstance(exc, urllib.error.HTTPError):
+        if exc.code == 401:
+            return (
+                "FlightMesh updater authentication failed: the station upload "
+                "token in /etc/flightmesh/feeder.env was rejected. Rotate or "
+                "reinstall the station upload token, then retry the updater."
+            )
+        return f"FlightMesh updater request failed with HTTP {exc.code}: {exc.reason}"
+    if isinstance(exc, urllib.error.URLError):
+        return f"FlightMesh updater could not reach the API: {exc.reason}"
+    return f"FlightMesh updater failed: {exc}"
+
+
+def run():
     api_url = os.environ["FLIGHTMESH_API_URL"].rstrip("/")
     station = os.environ["FLIGHTMESH_STATION_ID"]
     token = os.environ["FLIGHTMESH_FEEDER_TOKEN"]
@@ -73,8 +89,25 @@ def main():
         if BACKUP_PATH.exists():
             BACKUP_PATH.replace(INSTALL_PATH)
             subprocess.run(["systemctl", "restart", "flightmesh-feeder.service"], check=False)
-        report(api_url, station, token, request_id, "failed", str(exc)[:500])
+        message = update_error_message(exc)
+        try:
+            report(api_url, station, token, request_id, "failed", message[:500])
+        except Exception as report_exc:
+            print(update_error_message(report_exc), file=sys.stderr)
+            print(message, file=sys.stderr)
+            raise SystemExit(1) from None
+        print(message, file=sys.stderr)
+        raise SystemExit(1) from None
+
+
+def main():
+    try:
+        run()
+    except SystemExit:
         raise
+    except Exception as exc:
+        print(update_error_message(exc), file=sys.stderr)
+        raise SystemExit(1) from None
 
 
 if __name__ == "__main__":
