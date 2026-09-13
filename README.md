@@ -122,7 +122,7 @@ sudo grep '^FLIGHTMESH_AIRCRAFT_SOURCE=' /etc/flightmesh/feeder.env
 
 ## Updating an existing feeder
 
-The private feeder portal compares the version reported by this service with the current release. Version 0.2.2 adds an updater that checks every five minutes for an update explicitly approved by the feeder owner in the portal. The backend cannot connect inbound to the Pi; the Pi securely pulls only a checksum-pinned HTTPS artifact, validates its Python syntax, keeps a rollback copy and reports success or failure.
+The private feeder portal compares the version reported by this service with the current release. Version 0.2.6 includes guarded receiver detection, the one-step bootstrap installer and the updater that checks every five minutes for an update explicitly approved by the feeder owner in the portal. The backend cannot connect inbound to the Pi; the Pi securely pulls only a checksum-pinned HTTPS artifact, validates its Python syntax, keeps a rollback copy and reports success or failure.
 
 Existing installations need this one-time bootstrap before the portal button can work:
 
