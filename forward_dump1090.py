@@ -17,7 +17,7 @@ from typing import Any
 FEET_TO_METERS = 0.3048
 KNOTS_TO_METERS_PER_SECOND = 0.514444
 FEET_PER_MINUTE_TO_METERS_PER_SECOND = 0.00508
-CLIENT_VERSION = "flightmesh-dump1090/0.2.6"
+CLIENT_VERSION = "flightmesh-dump1090/0.2.7"
 MAX_BATCH_SIZE = 100
 MAX_POSITION_AGE_SECONDS = 45
 
@@ -76,6 +76,12 @@ def convert_aircraft(document: dict[str, Any], received_at: int | None = None) -
         squawk = str(aircraft.get("squawk", "")).strip()
         if len(squawk) == 4:
             observation["squawk"] = squawk
+        category = str(aircraft.get("category", "")).strip().upper()
+        if category:
+            observation["category"] = category[:4]
+        aircraft_type = str(aircraft.get("t", aircraft.get("type", ""))).strip().upper()
+        if aircraft_type:
+            observation["aircraft_type"] = aircraft_type[:8]
         observations.append(observation)
     return observations
 
