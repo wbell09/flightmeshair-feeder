@@ -136,20 +136,83 @@ After that, future feeder-script updates can be approved from the portal. Manual
 
 The portal update button updates the feeder forwarding script. To refresh the updater service itself, including clearer token-authentication diagnostics, rerun the one-time bootstrap command above.
 
-```bash
-git -C ~/flightmeshair-feeder pull
-sudo install -m 0755 \
-  ~/flightmeshair-feeder/forward_dump1090.py \
-  /opt/flightmesh/forward_dump1090.py
-sudo systemctl restart flightmesh-feeder
-sudo systemctl status flightmesh-feeder --no-pager
-```
+### Updating manually
 
-If `~/flightmeshair-feeder` does not exist yet, clone it first:
+These steps update only the forwarding script. To refresh the updater or service definitions, rerun the bootstrap installation instead. The bootstrap overwrites matching downloaded files and reruns the installer, including its configuration prompts.
+
+Run the following in Bash on the feeder computer. It uses the original source directory when that is a Git checkout. Otherwise it uses a separate checkout, leaving any bootstrap-downloaded files in place.
+
+Before installing, preserve any custom changes to /opt/flightmesh/forward_dump1090.py; the install command replaces that file.
 
 ```bash
-git clone https://github.com/wbell09/flightmeshair-feeder.git ~/flightmeshair-feeder
+(
+  set -euo pipefail
+
+  original_dir="$HOME/flightmeshair-feeder"
+  alternate_dir="$HOME/flightmeshair-feeder-git"
+
+  is_checkout_root() {
+    [ -d "$1" ] || return 1
+    [ "$(git -C "$1" rev-parse --show-prefix 2>/dev/null)" = "" ] || return 1
+    git -C "$1" rev-parse --is-inside-work-tree 2>/dev/null | grep -qx true
+  }
+
+  if is_checkout_root "$original_dir"; then
+    source_dir="$original_dir"
+  else
+    if [ -d "$original_dir" ]; then
+      echo "Original source directory exists but is not a Git checkout; leaving it unchanged."
+    elif [ -e "$original_dir" ] || [ -L "$original_dir" ]; then
+      echo "Original source path is not a usable directory; leaving it unchanged."
+    else
+      echo "Original source directory is missing."
+    fi
+
+    source_dir="$alternate_dir"
+    if [ -e "$source_dir" ] || [ -L "$source_dir" ]; then
+      if ! is_checkout_root "$source_dir"; then
+        echo "Alternate destination exists and is not a Git checkout. Review it before continuing." >&2
+        exit 1
+      fi
+    else
+      git clone https://github.com/wbell09/flightmeshair-feeder.git "$source_dir"
+    fi
+  fi
+
+  origin_url="$(git -C "$source_dir" remote get-url origin)"
+  case "$origin_url" in
+    https://github.com/wbell09/flightmeshair-feeder.git|https://github.com/wbell09/flightmeshair-feeder|git@github.com:wbell09/flightmeshair-feeder.git)
+      ;;
+    *)
+      echo "Unexpected origin: $origin_url. Review the repository before continuing." >&2
+      exit 1
+      ;;
+  esac
+
+  if [ -n "$(git -C "$source_dir" status --porcelain)" ]; then
+    git -C "$source_dir" status --short
+    echo "Review and preserve local changes before updating." >&2
+    exit 1
+  fi
+
+  git -C "$source_dir" pull --ff-only
+  sudo install -m 0755 \
+    "$source_dir/forward_dump1090.py" \
+    /opt/flightmesh/forward_dump1090.py
+  sudo systemctl restart flightmesh-feeder
+  sudo systemctl status flightmesh-feeder --no-pager
+)
 ```
+
+A non-fast-forward pull stops this sequence. Review any local commits or branch differences before retrying. A clean working tree does not imply that there are no local commits.
+
+Verify uploads:
+
+```bash
+sudo journalctl -u flightmesh-feeder -n 30 --no-pager
+```
+
+Look for successful uploads such as `read=21 accepted=21`.
 
 ## View your private portal
 
