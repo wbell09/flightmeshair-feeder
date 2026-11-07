@@ -138,30 +138,41 @@ The portal update button updates the feeder forwarding script. To refresh the up
 
 ### Updating manually
 
-These steps update only the forwarding script. To refresh the updater or service definitions, rerun the bootstrap installation instead. The bootstrap overwrites matching downloaded files and reruns the installer, including its configuration prompts.
+These recovery steps update only the forwarding script. Use the bootstrap command above to refresh the updater or service definitions; it overwrites matching downloaded files and reruns the installer, including its configuration prompts.
 
-Run the following in Bash on the feeder computer. It uses the original source directory when that is a Git checkout. Otherwise it uses a separate checkout, leaving any bootstrap-downloaded files in place.
+Run the block in Bash as your **normal feeder user**, not from a root shell or with `sudo bash`. The block uses that user's home directory and calls `sudo` only for the installed files and service. Git and sudo must already be installed; on Debian-based systems, Git can be installed separately with `sudo apt-get update` followed by `sudo apt-get install git`.
 
-Before installing, preserve any custom changes to /opt/flightmesh/forward_dump1090.py; the install command replaces that file.
+The block preserves bootstrap-downloaded files and uses a separate Git checkout when needed. It requires a clean `main` branch tracking `origin/main`. After fetching, it stops for any local commits ahead of or diverged from the published branch, as well as local edits and untracked files. Review and preserve your work before retrying; do not discard it just to complete an update.
+
+Before replacing the installed script, the block makes a uniquely named backup beside it. Keep the printed backup path for recovery. This updates an existing feeder; if the installed script is absent, use the bootstrap installation first.
 
 ```bash
 (
   set -euo pipefail
+
+  if [ "$(id -u)" -eq 0 ]; then
+    echo "Run this block as the normal feeder user, not with sudo or as root." >&2
+    exit 1
+  fi
+  command -v git >/dev/null || {
+    echo "Git is required. Install it before running these update steps." >&2
+    exit 1
+  }
 
   original_dir="$HOME/flightmeshair-feeder"
   alternate_dir="$HOME/flightmeshair-feeder-git"
 
   is_checkout_root() {
     [ -d "$1" ] || return 1
-    [ "$(git -C "$1" rev-parse --show-prefix 2>/dev/null)" = "" ] || return 1
-    git -C "$1" rev-parse --is-inside-work-tree 2>/dev/null | grep -qx true
+    [ "$(git -C "$1" rev-parse --is-inside-work-tree 2>/dev/null)" = true ] || return 1
+    [ "$(git -C "$1" rev-parse --show-prefix 2>/dev/null)" = "" ]
   }
 
   if is_checkout_root "$original_dir"; then
     source_dir="$original_dir"
   else
     if [ -d "$original_dir" ]; then
-      echo "Original source directory exists but is not a Git checkout; leaving it unchanged."
+      echo "Original directory is not an accessible checkout root; leaving it unchanged."
     elif [ -e "$original_dir" ] || [ -L "$original_dir" ]; then
       echo "Original source path is not a usable directory; leaving it unchanged."
     else
@@ -171,7 +182,7 @@ Before installing, preserve any custom changes to /opt/flightmesh/forward_dump10
     source_dir="$alternate_dir"
     if [ -e "$source_dir" ] || [ -L "$source_dir" ]; then
       if ! is_checkout_root "$source_dir"; then
-        echo "Alternate destination exists and is not a Git checkout. Review it before continuing." >&2
+        echo "Alternate destination exists but is not an accessible checkout root. Review it before continuing." >&2
         exit 1
       fi
     else
@@ -189,22 +200,51 @@ Before installing, preserve any custom changes to /opt/flightmesh/forward_dump10
       ;;
   esac
 
-  if [ -n "$(git -C "$source_dir" status --porcelain)" ]; then
-    git -C "$source_dir" status --short
-    echo "Review and preserve local changes before updating." >&2
+  branch="$(git -C "$source_dir" symbolic-ref --quiet --short HEAD)" || {
+    echo "Detached HEAD: select the intended main checkout before updating." >&2
+    exit 1
+  }
+  upstream="$(git -C "$source_dir" rev-parse --abbrev-ref --symbolic-full-name '@{u}')" || {
+    echo "No upstream branch is configured. Review the checkout before updating." >&2
+    exit 1
+  }
+  if [ "$branch" != main ] || [ "$upstream" != origin/main ]; then
+    echo "These update steps require main tracking origin/main. Review the checkout before continuing." >&2
     exit 1
   fi
 
-  git -C "$source_dir" pull --ff-only
-  sudo install -m 0755 \
-    "$source_dir/forward_dump1090.py" \
-    /opt/flightmesh/forward_dump1090.py
+  if [ -n "$(git -C "$source_dir" status --porcelain)" ]; then
+    git -C "$source_dir" status --short
+    echo "Review and preserve local edits and untracked files before updating." >&2
+    exit 1
+  fi
+
+  git -C "$source_dir" fetch origin
+  if [ "$(git -C "$source_dir" rev-list --count origin/main..HEAD)" -ne 0 ]; then
+    echo "Local commits are ahead of or diverged from origin/main. Review them before updating." >&2
+    exit 1
+  fi
+  git -C "$source_dir" merge --ff-only origin/main
+
+  if [ ! -f "$source_dir/forward_dump1090.py" ]; then
+    echo "The updated forwarding script is missing. No installed files were replaced." >&2
+    exit 1
+  fi
+  installed_script=/opt/flightmesh/forward_dump1090.py
+  if ! sudo test -f "$installed_script"; then
+    echo "Existing feeder script not found. Use the bootstrap installation first." >&2
+    exit 1
+  fi
+  backup="$(sudo mktemp "${installed_script}.backup.XXXXXXXX")"
+  sudo cp -p "$installed_script" "$backup"
+  printf 'Saved previous forwarding script to %s\n' "$backup"
+  sudo install -m 0755 "$source_dir/forward_dump1090.py" "$installed_script"
   sudo systemctl restart flightmesh-feeder
   sudo systemctl status flightmesh-feeder --no-pager
 )
 ```
 
-A non-fast-forward pull stops this sequence. Review any local commits or branch differences before retrying. A clean working tree does not imply that there are no local commits.
+A detached HEAD, missing or unexpected upstream, failed fetch, or unsuccessful fast-forward also stops before installation. If the service fails after installation, the backup remains available; these steps do not automatically restore it.
 
 Verify uploads:
 
@@ -212,7 +252,7 @@ Verify uploads:
 sudo journalctl -u flightmesh-feeder -n 30 --no-pager
 ```
 
-Look for successful uploads such as `read=21 accepted=21`.
+Look for successful uploads, for example `read=21 accepted=21`. The counts vary; 21 is not a required value. Check the surrounding logs for errors. Live receiver reception and accepted uploads must be verified on the feeder computer.
 
 ## View your private portal
 
@@ -221,3 +261,13 @@ Sign in at [feed.flightmeshair.com](https://feed.flightmeshair.com/) using the c
 ## Support
 
 Email [feeders@flightmeshair.com](mailto:feeders@flightmeshair.com) with your station ID and a description of the problem. Do not send your upload token.
+
+## Development checks
+
+From the repository root, run:
+
+```bash
+python3 tests/check_manual_update.py
+```
+
+The checker requires Python 3, Bash, and a recent Git. It extracts the documented update block and exercises 28 isolated scenarios with local Git remotes, simulated source directories, and stubbed privileged commands. It does not install software, contact GitHub, or control real services. It verifies the update flow, not live receiver reception or uploads.
